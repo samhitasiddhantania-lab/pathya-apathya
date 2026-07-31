@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<title>Pathya-Apathya Advisor</title>
+<meta name="description" content="Ayurvedic Pathya-Apathya lifestyle guidance for doctors and patients" />
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#7a4b1e" />
+<link rel="stylesheet" href="css/style.css" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+</head>
+<body>
+
+<header class="topbar">
+  <h1>🌿 Pathya-Apathya Advisor</h1>
+  <div class="mode-toggle">
+    <button id="modeDoctor" class="active">Doctor</button>
+    <button id="modePatient">Patient</button>
+  </div>
+</header>
+
+<main>
+  <div class="search-box">
+    <input id="searchInput" type="text" placeholder="Search a condition e.g. Pandu, Amavata, Jwara..." />
+    <select id="langSelect">
+      <option value="en">English</option>
+      <option value="hi">हिन्दी</option>
+    </select>
+  </div>
+
+  <ul id="suggestions"></ul>
+
+  <div id="resultArea">
+    <div class="empty-state">Search a diagnosis above to see Pathya-Apathya guidance.</div>
+  </div>
+</main>
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/render.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
