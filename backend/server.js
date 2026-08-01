@@ -98,9 +98,34 @@ async function ensureFirstAdmin() {
   console.log(`Bootstrapped first admin account: ${email}`);
 }
 
+// Keep-alive "robot" for Render's free tier: it spins the service down after
+// ~15 minutes with no incoming requests, causing the next real request (e.g.
+// an admin login) to fail while it cold-starts. Render automatically sets
+// RENDER_EXTERNAL_URL to this service's own public URL, so we just ping our
+// own /api/health endpoint on a timer to keep generating traffic. This is a
+// no-op locally/on other hosts since RENDER_EXTERNAL_URL won't be set there.
+function startKeepAlive() {
+  const selfUrl = process.env.RENDER_EXTERNAL_URL;
+  if (!selfUrl) return; // not running on Render (e.g. local dev) — skip
+
+  const PING_INTERVAL_MS = 10 * 60 * 1000; // 10 min, comfortably under the ~15 min idle timeout
+
+  setInterval(async () => {
+    try {
+      const res = await fetch(`${selfUrl}/api/health`);
+      console.log(`[keep-alive] ping ${res.status} at ${new Date().toISOString()}`);
+    } catch (err) {
+      console.warn(`[keep-alive] ping failed: ${err.message}`);
+    }
+  }, PING_INTERVAL_MS);
+
+  console.log(`[keep-alive] enabled, pinging ${selfUrl}/api/health every ${PING_INTERVAL_MS / 60000} min`);
+}
+
 connectDB().then(async () => {
   await ensureFirstAdmin();
   app.listen(PORT, () => {
     console.log(`Pathya-Apathya Advisor API running on port ${PORT}`);
+    startKeepAlive();
   });
 });
