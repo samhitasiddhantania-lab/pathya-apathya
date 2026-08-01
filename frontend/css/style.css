@@ -36,6 +36,25 @@ header.topbar h1 {
   margin: 0;
 }
 
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-link {
+  color: white;
+  opacity: 0.85;
+  text-decoration: none;
+  font-size: 12.5px;
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 14px;
+  padding: 5px 10px;
+  white-space: nowrap;
+}
+
+.admin-link:hover { opacity: 1; background: rgba(255,255,255,0.12); }
+
 .mode-toggle {
   display: flex;
   background: rgba(255,255,255,0.15);

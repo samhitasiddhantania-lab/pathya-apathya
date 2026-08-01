@@ -208,7 +208,45 @@ API can be reused as-is — only a new frontend client would need to be built.
 
 ---
 
-## 9. Troubleshooting
+## 9. Admin panel (manual entry + Excel bulk import)
+
+A browser-based admin panel lives at `frontend/admin.html`, linked from the "⚙ Admin"
+button in the main app's header. It talks to the existing `/api/admin/*` routes, which
+were already protected by the `ADMIN_API_KEY` env var (`middleware/apiKeyAuth.js`) —
+nothing new to configure.
+
+**Sign in:** open `admin.html`, paste the same value you set for `ADMIN_API_KEY` on the
+backend, click Connect. The key is kept in `localStorage` on your device only and sent
+as the `x-api-key` header on every request.
+
+**Manual entry:** "+ New disease" opens a form covering every field in the `Disease`
+schema — nidana, pathya/apathya ahara & vihara, dinacharya, ritucharya, precautions,
+patient education, and citations — each as an "add row" repeater. Existing diseases can
+be edited, published (draft → published), or deleted from the list below the form.
+
+**Bulk Excel import/export:**
+- **Download blank template** — a `.xlsx` with the correct column headers, one filled
+  example row, and a "Read Me" sheet explaining the format.
+- **Export current data** — every disease currently in the database, in the same format,
+  handy as a backup or for bulk-editing many diseases at once in Excel/Google Sheets.
+- **Upload & overwrite** — pick a filled-in `.xlsx` and upload it. Each row is matched to
+  an existing disease by its `slug` column: if that slug already exists, the disease is
+  **completely overwritten** with the row's data (not merged); if it's new, a disease is
+  created. One bad row won't block the rest of the sheet — you'll get a per-row error
+  summary after upload.
+
+Because the schema has nested lists (e.g. multiple food items per disease, each with
+several notes), the spreadsheet uses two plain-text separators instead of extra columns:
+`|` between multiple entries in one cell, and `::` between sub-fields inside one entry.
+The template's "Read Me" sheet spells this out with examples for every column.
+
+New backend dependencies for this: `multer` (handles the file upload) and `xlsx`
+(reads/writes the spreadsheet) — already added to `backend/package.json`, so a normal
+`npm install` in `backend/` picks them up.
+
+---
+
+## 10. Troubleshooting
 
 - **CORS errors in browser console** → add your frontend's exact URL to `ALLOWED_ORIGINS`
   on the backend and redeploy/restart.

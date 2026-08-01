@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<title>Admin · Pathya-Apathya Advisor</title>
+<meta name="robots" content="noindex, nofollow" />
+<link rel="stylesheet" href="css/style.css" />
+<link rel="stylesheet" href="css/admin.css" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+</head>
+<body>
+
+<header class="topbar">
+  <h1>🌿 Admin Panel</h1>
+  <div class="topbar-actions">
+    <a href="index.html" class="link-btn">← Back to App</a>
+    <button id="logoutBtn" class="link-btn" style="display:none;">Log out</button>
+  </div>
+</header>
+
+<main class="admin-main">
+
+  <!-- ===================== LOGIN GATE ===================== -->
+  <section id="loginGate" class="card">
+    <h2>Admin sign-in</h2>
+    <p class="muted">
+      Enter the admin API key configured on the server (<code>ADMIN_API_KEY</code>
+      environment variable). It's stored only in this browser and sent as the
+      <code>x-api-key</code> header on every admin request.
+    </p>
+    <div class="form-row">
+      <input id="apiKeyInput" type="password" placeholder="Admin API key" autocomplete="off" />
+      <button id="connectBtn" class="btn-primary">Connect</button>
+    </div>
+    <div id="loginError" class="error-text"></div>
+  </section>
+
+  <!-- ===================== ADMIN CONTENT (hidden until logged in) ===================== -->
+  <div id="adminContent" style="display:none;">
+
+    <!-- ---------- Bulk Excel Import/Export ---------- -->
+    <section class="card">
+      <h2>📊 Bulk import / export (Excel)</h2>
+      <p class="muted">
+        Upload a spreadsheet to create or <strong>completely overwrite</strong> diseases in bulk —
+        matched by the <code>slug</code> column. Any existing disease with the same slug is
+        replaced entirely with the row's data.
+      </p>
+
+      <div class="button-row">
+        <button id="downloadTemplateBtn" class="btn-secondary">⬇ Download blank template</button>
+        <button id="downloadExportBtn" class="btn-secondary">⬇ Export current data</button>
+      </div>
+
+      <div class="form-row" style="margin-top:14px;">
+        <input id="excelFileInput" type="file" accept=".xlsx,.xls" />
+        <button id="uploadExcelBtn" class="btn-primary">Upload &amp; overwrite</button>
+      </div>
+
+      <div id="importResult"></div>
+    </section>
+
+    <!-- ---------- Disease list ---------- -->
+    <section class="card">
+      <div class="section-header">
+        <h2>🩺 All diseases</h2>
+        <button id="newDiseaseBtn" class="btn-primary">+ New disease</button>
+      </div>
+      <input id="listFilter" type="text" placeholder="Filter by name or slug..." class="filter-input" />
+      <div id="diseaseListWrap">
+        <table class="admin-table">
+          <thead>
+            <tr><th>Sanskrit name</th><th>Slug</th><th>Status</th><th>Updated</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="diseaseListBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---------- Editor form ---------- -->
+    <section class="card" id="editorSection" style="display:none;">
+      <div class="section-header">
+        <h2 id="editorTitle">New disease</h2>
+        <button id="closeEditorBtn" class="link-btn">✕ Close</button>
+      </div>
+
+      <form id="diseaseForm">
+
+        <fieldset>
+          <legend>Basics</legend>
+          <div class="grid-2">
+            <label>Slug (unique key) *
+              <input name="slug" required placeholder="pandu" />
+            </label>
+            <label>Sanskrit name *
+              <input name="sanskritName" required placeholder="Pandu Roga" />
+            </label>
+            <label>Transliteration
+              <input name="transliteration" placeholder="Pandu" />
+            </label>
+            <label>Category
+              <input name="category" placeholder="Rasavaha Vyadhi" />
+            </label>
+            <label>Dosha involvement (comma separated)
+              <input name="doshaInvolvement" placeholder="Pitta, Vitiated Rasa-Rakta" />
+            </label>
+            <label>Synonyms (comma separated)
+              <input name="synonyms" placeholder="pandu roga, anemia" />
+            </label>
+            <label>Review status
+              <select name="reviewStatus">
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+              </select>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Common name (by language)</legend>
+          <div class="repeater" id="rep-commonName" data-fields="lang,value"></div>
+          <button type="button" class="add-row-btn" data-target="rep-commonName">+ Add language</button>
+        </fieldset>
+
+        <fieldset>
+          <legend>Nidana (triggers/causes)</legend>
+          <div class="repeater" id="rep-nidana" data-fields="text,patientNote"></div>
+          <button type="button" class="add-row-btn" data-target="rep-nidana">+ Add trigger</button>
+        </fieldset>
+
+        <fieldset>
+          <legend class="pathya">✅ Pathya Ahara (foods to eat)</legend>
+          <div class="repeater" id="rep-pathyaAhara" data-fields="name,patientNote,clinicalNote,conditionalNote,imageUrl"></div>
+          <button type="button" class="add-row-btn" data-target="rep-pathyaAhara">+ Add item</button>
+        </fieldset>
+
+        <fieldset>
+          <legend class="apathya">🚫 Apathya Ahara (foods to avoid)</legend>
+          <div class="repeater" id="rep-apathyaAhara" data-fields="name,patientNote,clinicalNote,conditionalNote,imageUrl"></div>
+          <button type="button" class="add-row-btn" data-target="rep-apathyaAhara">+ Add item</button>
+        </fieldset>
+
+        <fieldset>
+          <legend class="pathya">✅ Pathya Vihara (habits to follow)</legend>
+          <div class="repeater" id="rep-pathyaVihara" data-fields="name,patientNote,clinicalNote,conditionalNote,imageUrl"></div>
+          <button type="button" class="add-row-btn" data-target="rep-pathyaVihara">+ Add item</button>
+        </fieldset>
+
+        <fieldset>
+          <legend class="apathya">🚫 Apathya Vihara (habits to avoid)</legend>
+          <div class="repeater" id="rep-apathyaVihara" data-fields="name,patientNote,clinicalNote,conditionalNote,imageUrl"></div>
+          <button type="button" class="add-row-btn" data-target="rep-apathyaVihara">+ Add item</button>
+        </fieldset>
+
+        <fieldset>
+          <legend>Dinacharya (daily routine)</legend>
+          <div class="repeater" id="rep-dinacharya"
+               data-fields="timeOfDay,activity,clinicalNote,patientNote"
+               data-select-timeOfDay="Early Morning,Morning,Afternoon,Evening,Night"></div>
+          <button type="button" class="add-row-btn" data-target="rep-dinacharya">+ Add step</button>
+        </fieldset>
+
+        <fieldset>
+          <legend>Ritucharya (seasonal modifications)</legend>
+          <div class="repeater" id="rep-ritucharya"
+               data-fields="season,modification,patientNote"
+               data-select-season="Hemanta,Shishira,Vasanta,Grishma,Varsha,Sharad"></div>
+          <button type="button" class="add-row-btn" data-target="rep-ritucharya">+ Add season note</button>
+        </fieldset>
+
+        <fieldset>
+          <legend>⚠ Precautions</legend>
+          <div class="repeater" id="rep-precautions" data-fields="value"></div>
+          <button type="button" class="add-row-btn" data-target="rep-precautions">+ Add precaution</button>
+        </fieldset>
+
+        <fieldset>
+          <legend>Patient education points</legend>
+          <div class="repeater" id="rep-patientEducation"
+               data-fields="text,category"
+               data-select-category="general,warning,myth-busting,reassurance"></div>
+          <button type="button" class="add-row-btn" data-target="rep-patientEducation">+ Add point</button>
+        </fieldset>
+
+        <fieldset>
+          <legend>Classical citations</legend>
+          <div class="repeater" id="rep-citations" data-fields="granth,sthana,adhyaya,shlokaNumber,originalShloka,translation"></div>
+          <button type="button" class="add-row-btn" data-target="rep-citations">+ Add citation</button>
+        </fieldset>
+
+        <div id="editorError" class="error-text"></div>
+
+        <div class="button-row" style="margin-top:16px;">
+          <button type="submit" class="btn-primary">💾 Save disease</button>
+          <button type="button" id="cancelEditBtn" class="btn-secondary">Cancel</button>
+        </div>
+      </form>
+    </section>
+
+  </div>
+</main>
+
+<script src="js/config.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>
