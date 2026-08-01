@@ -15,6 +15,7 @@
   <h1>🌿 Admin Panel</h1>
   <div class="topbar-actions">
     <a href="index.html" class="link-btn">← Back to App</a>
+    <span id="roleBadge" class="role-badge" style="display:none;"></span>
     <button id="logoutBtn" class="link-btn" style="display:none;">Log out</button>
   </div>
 </header>
@@ -23,24 +24,58 @@
 
   <!-- ===================== LOGIN GATE ===================== -->
   <section id="loginGate" class="card">
-    <h2>Admin sign-in</h2>
+    <h2>Sign in</h2>
     <p class="muted">
-      Enter the admin API key configured on the server (<code>ADMIN_API_KEY</code>
-      environment variable). It's stored only in this browser and sent as the
-      <code>x-api-key</code> header on every admin request.
+      Sign in with your admin/editor account. Don't have one yet? Ask whoever holds the
+      server's master key to create it for you (see "Manage accounts" below).
     </p>
-    <div class="form-row">
-      <input id="apiKeyInput" type="password" placeholder="Admin API key" autocomplete="off" />
-      <button id="connectBtn" class="btn-primary">Connect</button>
+    <div class="form-row" style="flex-wrap:wrap;">
+      <input id="loginEmail" type="email" placeholder="you@example.com" autocomplete="username" />
+      <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" />
+      <button id="loginBtn" class="btn-primary">Sign in</button>
     </div>
     <div id="loginError" class="error-text"></div>
+
+    <details class="master-key-panel">
+      <summary>⚙ Manage accounts (requires server master key)</summary>
+      <p class="muted" style="margin-top:10px;">
+        This is the <code>ADMIN_API_KEY</code> set on the server — use it to create the
+        first account or manage who has access. It never touches day-to-day logins.
+      </p>
+      <div class="form-row">
+        <input id="masterKeyInput" type="password" placeholder="Master key (ADMIN_API_KEY)" autocomplete="off" />
+        <button id="masterConnectBtn" class="btn-secondary">Load accounts</button>
+      </div>
+      <div id="masterKeyError" class="error-text"></div>
+
+      <div id="userMgmtWrap" style="display:none; margin-top:14px;">
+        <table class="admin-table">
+          <thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Last login</th><th>Actions</th></tr></thead>
+          <tbody id="userListBody"></tbody>
+        </table>
+
+        <h3 style="margin-top:18px;">Create new account</h3>
+        <div class="grid-2">
+          <label>Email <input id="newUserEmail" type="email" /></label>
+          <label>Temporary password <input id="newUserPassword" type="password" placeholder="min 8 characters" /></label>
+          <label>Role
+            <select id="newUserRole">
+              <option value="editor">Editor (drafts only)</option>
+              <option value="admin">Admin (full access)</option>
+            </select>
+          </label>
+        </div>
+        <button id="createUserBtn" class="btn-primary" style="margin-top:8px;">+ Create account</button>
+        <div id="userMgmtResult"></div>
+      </div>
+    </details>
   </section>
 
   <!-- ===================== ADMIN CONTENT (hidden until logged in) ===================== -->
   <div id="adminContent" style="display:none;">
 
-    <!-- ---------- Bulk Excel Import/Export ---------- -->
-    <section class="card">
+    <!-- ---------- Bulk Excel Import/Export (admin only) ---------- -->
+    <section class="card admin-only-section" id="excelSection">
       <h2>📊 Bulk import / export (Excel)</h2>
       <p class="muted">
         Upload a spreadsheet to create or <strong>completely overwrite</strong> diseases in bulk —
@@ -196,6 +231,19 @@
           <button type="button" id="cancelEditBtn" class="btn-secondary">Cancel</button>
         </div>
       </form>
+    </section>
+
+    <!-- ---------- Audit log (admin only) ---------- -->
+    <section class="card admin-only-section" id="auditSection">
+      <div class="section-header">
+        <h2>🕵 Audit log</h2>
+        <button id="refreshAuditBtn" class="btn-secondary">↻ Refresh</button>
+      </div>
+      <p class="muted">Every create, edit, publish, delete, and bulk import — who did it and when.</p>
+      <table class="admin-table">
+        <thead><tr><th>When</th><th>Action</th><th>Slug</th><th>By</th><th>Details</th></tr></thead>
+        <tbody id="auditLogBody"></tbody>
+      </table>
     </section>
 
   </div>

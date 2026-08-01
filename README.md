@@ -208,40 +208,63 @@ API can be reused as-is — only a new frontend client would need to be built.
 
 ---
 
-## 9. Admin panel (manual entry + Excel bulk import)
+## 9. Admin panel (per-user login, roles, audit log, Excel bulk import)
 
 A browser-based admin panel lives at `frontend/admin.html`, linked from the "⚙ Admin"
-button in the main app's header. It talks to the existing `/api/admin/*` routes, which
-were already protected by the `ADMIN_API_KEY` env var (`middleware/apiKeyAuth.js`) —
-nothing new to configure.
+button in the main app's header.
 
-**Sign in:** open `admin.html`, paste the same value you set for `ADMIN_API_KEY` on the
-backend, click Connect. The key is kept in `localStorage` on your device only and sent
-as the `x-api-key` header on every request.
+### 9.1 Accounts & roles
+
+Content editors sign in with their own email + password (not a shared secret). Two roles:
+
+- **editor** — create and edit diseases, but only as drafts. Can't publish, delete,
+  run bulk Excel import/export, or see the audit log.
+- **admin** — everything editors can do, plus publish, delete, bulk import/export,
+  user management, and the audit log.
+
+**New env vars needed:**
+
+| Variable | Purpose |
+|---|---|
+| `JWT_SECRET` | Signs login sessions. Set this to any long random string. |
+| `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD` | Auto-creates the very first admin account on server startup, only if no accounts exist yet. Safe to leave set permanently — it's a no-op after the first run. |
+| `ADMIN_API_KEY` | Still used, but now only as the **master key** for account management (see below) — not for day-to-day logins. |
+
+**Managing accounts:** open `admin.html`, expand "⚙ Manage accounts" on the login
+screen, enter the `ADMIN_API_KEY` master key, and create/deactivate/promote accounts
+from there — no separate admin tool needed.
+
+**Brute-force protection:** 5 failed logins locks an account for 15 minutes
+(an admin can manually unlock it early from the accounts panel). The login endpoint is
+also rate-limited by IP address.
+
+### 9.2 Audit log
+
+Every create, edit, publish, delete, and bulk import is recorded with who did it and
+when, visible to admins in the "🕵 Audit log" section of the panel.
+
+### 9.3 Manual entry & Excel bulk import
 
 **Manual entry:** "+ New disease" opens a form covering every field in the `Disease`
 schema — nidana, pathya/apathya ahara & vihara, dinacharya, ritucharya, precautions,
-patient education, and citations — each as an "add row" repeater. Existing diseases can
-be edited, published (draft → published), or deleted from the list below the form.
+patient education, and citations — each as an "add row" repeater.
 
-**Bulk Excel import/export:**
+**Bulk Excel import/export (admin only):**
 - **Download blank template** — a `.xlsx` with the correct column headers, one filled
   example row, and a "Read Me" sheet explaining the format.
-- **Export current data** — every disease currently in the database, in the same format,
-  handy as a backup or for bulk-editing many diseases at once in Excel/Google Sheets.
+- **Export current data** — every disease currently in the database, in the same format.
 - **Upload & overwrite** — pick a filled-in `.xlsx` and upload it. Each row is matched to
   an existing disease by its `slug` column: if that slug already exists, the disease is
-  **completely overwritten** with the row's data (not merged); if it's new, a disease is
-  created. One bad row won't block the rest of the sheet — you'll get a per-row error
-  summary after upload.
+  **completely overwritten**; if it's new, a disease is created. One bad row won't block
+  the rest of the sheet — you get a per-row error summary after upload.
 
-Because the schema has nested lists (e.g. multiple food items per disease, each with
-several notes), the spreadsheet uses two plain-text separators instead of extra columns:
-`|` between multiple entries in one cell, and `::` between sub-fields inside one entry.
-The template's "Read Me" sheet spells this out with examples for every column.
+Because the schema has nested lists, the spreadsheet uses two plain-text separators
+instead of extra columns: `|` between multiple entries in one cell, and `::` between
+sub-fields inside one entry. The template's "Read Me" sheet spells this out with
+examples for every column.
 
-New backend dependencies for this: `multer` (handles the file upload) and `xlsx`
-(reads/writes the spreadsheet) — already added to `backend/package.json`, so a normal
+**New backend dependencies:** `multer` + `xlsx` (spreadsheet handling), `bcryptjs` +
+`jsonwebtoken` (per-user auth) — all already in `backend/package.json`, so a normal
 `npm install` in `backend/` picks them up.
 
 ---

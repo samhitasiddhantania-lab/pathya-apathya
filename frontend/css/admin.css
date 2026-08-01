@@ -1,5 +1,34 @@
-.admin-main {
-  max-width: 960px;
+.role-badge {
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.2);
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.master-key-panel {
+  margin-top: 18px;
+  border-top: 1px dashed var(--border);
+  padding-top: 14px;
+}
+
+.master-key-panel summary {
+  cursor: pointer;
+  font-size: 13.5px;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.admin-only-section[data-hidden="true"] {
+  display: none !important;
+}
+
+.role-note {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
 }
 
 .topbar-actions {

@@ -1,10 +1,14 @@
-// Admin panel logic: auth gate, disease list, manual CRUD editor,
-// and bulk Excel import/export. Talks to /api/admin/* which requires the
-// x-api-key header (checked server-side against ADMIN_API_KEY env var).
+// Admin panel logic: per-user JWT auth (with role-based permissions),
+// disease list, manual CRUD editor, bulk Excel import/export (admin only),
+// audit log (admin only), and a master-key-gated user management panel.
 
-const KEY_STORAGE = "pathya_admin_key";
+const TOKEN_STORAGE = "pathya_admin_token";
+const EMAIL_STORAGE = "pathya_admin_email";
+const ROLE_STORAGE = "pathya_admin_role";
+
 let allDiseases = [];
 let editingSlug = null; // null = creating a new disease
+let currentRole = null;
 
 // ---------------------------------------------------------------- helpers
 
@@ -15,25 +19,8 @@ function esc(str) {
   return div.innerHTML;
 }
 
-function getKey() {
-  return localStorage.getItem(KEY_STORAGE) || "";
-}
-
-function authHeaders(extra = {}) {
-  return { "x-api-key": getKey(), ...extra };
-}
-
-async function adminFetch(path, options = {}) {
-  const res = await fetch(`${API_BASE_URL}/admin${path}`, {
-    ...options,
-    headers: { ...authHeaders(options.headers || {}) },
-  });
-  if (res.status === 401) {
-    localStorage.removeItem(KEY_STORAGE);
-    showLoginGate("Session expired or invalid key. Please sign in again.");
-    throw new Error("Unauthorized");
-  }
-  return res;
+function getToken() {
+  return localStorage.getItem(TOKEN_STORAGE) || "";
 }
 
 function csvToList(str) {
@@ -43,55 +30,261 @@ function csvToList(str) {
     .filter(Boolean);
 }
 
-// ---------------------------------------------------------------- auth gate
+// ---------------------------------------------------------------- JWT-authenticated requests
+
+async function adminFetch(path, options = {}) {
+  const res = await fetch(`${API_BASE_URL}/admin${path}`, {
+    ...options,
+    headers: { Authorization: `Bearer ${getToken()}`, ...(options.headers || {}) },
+  });
+  if (res.status === 401) {
+    clearSession();
+    showLoginGate("Session expired or invalid. Please sign in again.");
+    throw new Error("Unauthorized");
+  }
+  return res;
+}
+
+function clearSession() {
+  localStorage.removeItem(TOKEN_STORAGE);
+  localStorage.removeItem(EMAIL_STORAGE);
+  localStorage.removeItem(ROLE_STORAGE);
+  currentRole = null;
+}
+
+// ---------------------------------------------------------------- login / session
 
 function showLoginGate(message) {
   document.getElementById("loginGate").style.display = "block";
   document.getElementById("adminContent").style.display = "none";
   document.getElementById("logoutBtn").style.display = "none";
+  document.getElementById("roleBadge").style.display = "none";
   document.getElementById("loginError").textContent = message || "";
 }
 
-function showAdminContent() {
-  document.getElementById("loginGate").style.display = "none";
-  document.getElementById("adminContent").style.display = "block";
-  document.getElementById("logoutBtn").style.display = "inline-block";
-}
+function applyRoleVisibility(role) {
+  currentRole = role;
+  const isAdmin = role === "admin";
 
-async function tryConnect(key) {
-  localStorage.setItem(KEY_STORAGE, key);
-  try {
-    const res = await fetch(`${API_BASE_URL}/admin/diseases`, { headers: authHeaders() });
-    if (res.status === 401) {
-      localStorage.removeItem(KEY_STORAGE);
-      showLoginGate("Invalid API key.");
-      return;
-    }
-    if (!res.ok) {
-      showLoginGate("Could not reach the server. Check your connection and try again.");
-      return;
-    }
-    showAdminContent();
-    await loadDiseaseList();
-  } catch (err) {
-    localStorage.removeItem(KEY_STORAGE);
-    showLoginGate("Could not reach the server: " + err.message);
+  document.querySelectorAll(".admin-only-section").forEach((el) => {
+    el.dataset.hidden = isAdmin ? "false" : "true";
+  });
+
+  // Editors can create/edit drafts but never flip reviewStatus to
+  // published directly — hide that option rather than let them pick it
+  // and silently have the server ignore it.
+  const reviewSelect = document.querySelector('select[name="reviewStatus"]');
+  if (reviewSelect) {
+    const publishedOption = [...reviewSelect.options].find((o) => o.value === "published");
+    if (publishedOption) publishedOption.disabled = !isAdmin;
   }
 }
 
-document.getElementById("connectBtn").addEventListener("click", () => {
-  const key = document.getElementById("apiKeyInput").value.trim();
-  if (!key) return;
-  tryConnect(key);
+function showAdminContent(email, role) {
+  document.getElementById("loginGate").style.display = "none";
+  document.getElementById("adminContent").style.display = "block";
+  document.getElementById("logoutBtn").style.display = "inline-block";
+  const badge = document.getElementById("roleBadge");
+  badge.textContent = `${email} · ${role}`;
+  badge.style.display = "inline-block";
+  applyRoleVisibility(role);
+}
+
+async function trySession() {
+  const token = getToken();
+  const email = localStorage.getItem(EMAIL_STORAGE);
+  const role = localStorage.getItem(ROLE_STORAGE);
+  if (!token || !email || !role) {
+    showLoginGate();
+    return;
+  }
+  try {
+    const res = await adminFetch("/diseases");
+    if (!res.ok) throw new Error("Session check failed");
+    showAdminContent(email, role);
+    await loadDiseaseList();
+    if (role === "admin") await loadAuditLog();
+  } catch (err) {
+    // adminFetch already cleared session + showed login gate on 401
+  }
+}
+
+document.getElementById("loginBtn").addEventListener("click", async () => {
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+  const errorBox = document.getElementById("loginError");
+  errorBox.textContent = "";
+
+  if (!email || !password) {
+    errorBox.textContent = "Enter both email and password.";
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/admin/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      errorBox.textContent = data.error || "Sign-in failed.";
+      return;
+    }
+
+    localStorage.setItem(TOKEN_STORAGE, data.token);
+    localStorage.setItem(EMAIL_STORAGE, data.email);
+    localStorage.setItem(ROLE_STORAGE, data.role);
+
+    document.getElementById("loginPassword").value = "";
+    showAdminContent(data.email, data.role);
+    await loadDiseaseList();
+    if (data.role === "admin") await loadAuditLog();
+  } catch (err) {
+    errorBox.textContent = "Could not reach the server: " + err.message;
+  }
 });
 
-document.getElementById("apiKeyInput").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") document.getElementById("connectBtn").click();
+document.getElementById("loginPassword").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") document.getElementById("loginBtn").click();
 });
 
 document.getElementById("logoutBtn").addEventListener("click", () => {
-  localStorage.removeItem(KEY_STORAGE);
+  clearSession();
   showLoginGate("");
+});
+
+// ---------------------------------------------------------------- master-key user management
+// Entirely separate auth path: uses x-api-key (ADMIN_API_KEY), not the JWT
+// session above. Lets the key-holder create/manage accounts even before
+// anyone can log in normally.
+
+function masterHeaders(extra = {}) {
+  return { "x-api-key": document.getElementById("masterKeyInput").value.trim(), ...extra };
+}
+
+async function loadUserList() {
+  const errorBox = document.getElementById("masterKeyError");
+  errorBox.textContent = "";
+  try {
+    const res = await fetch(`${API_BASE_URL}/admin/users`, { headers: masterHeaders() });
+    const data = await res.json();
+    if (!res.ok) {
+      errorBox.textContent = data.error || "Could not load accounts — check the master key.";
+      document.getElementById("userMgmtWrap").style.display = "none";
+      return;
+    }
+    document.getElementById("userMgmtWrap").style.display = "block";
+    renderUserList(data);
+  } catch (err) {
+    errorBox.textContent = "Could not reach the server: " + err.message;
+  }
+}
+
+function renderUserList(users) {
+  const rows = users
+    .map(
+      (u) => `
+      <tr>
+        <td>${esc(u.email)}</td>
+        <td>${esc(u.role)}</td>
+        <td>${u.active ? "Active" : "Deactivated"}${u.lockedUntil && new Date(u.lockedUntil) > new Date() ? " · 🔒 locked" : ""}</td>
+        <td>${u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "never"}</td>
+        <td class="row-actions">
+          <button data-user-action="toggleRole" data-email="${esc(u.email)}" data-role="${u.role === "admin" ? "editor" : "admin"}">
+            Make ${u.role === "admin" ? "editor" : "admin"}
+          </button>
+          <button data-user-action="toggleActive" data-email="${esc(u.email)}" data-active="${!u.active}">
+            ${u.active ? "Deactivate" : "Reactivate"}
+          </button>
+          ${u.lockedUntil && new Date(u.lockedUntil) > new Date() ? `<button data-user-action="unlock" data-email="${esc(u.email)}">Unlock</button>` : ""}
+          <button data-user-action="delete" data-email="${esc(u.email)}" class="danger">Delete</button>
+        </td>
+      </tr>`
+    )
+    .join("");
+  document.getElementById("userListBody").innerHTML =
+    rows || `<tr><td colspan="5" class="muted">No accounts yet — create the first one below.</td></tr>`;
+}
+
+document.getElementById("masterConnectBtn").addEventListener("click", loadUserList);
+
+document.getElementById("userListBody").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-user-action]");
+  if (!btn) return;
+  const { userAction, email } = btn.dataset;
+  const resultBox = document.getElementById("userMgmtResult");
+  resultBox.textContent = "";
+
+  try {
+    let res;
+    if (userAction === "toggleRole") {
+      res = await fetch(`${API_BASE_URL}/admin/users/${encodeURIComponent(email)}`, {
+        method: "PATCH",
+        headers: masterHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ role: btn.dataset.role }),
+      });
+    } else if (userAction === "toggleActive") {
+      res = await fetch(`${API_BASE_URL}/admin/users/${encodeURIComponent(email)}`, {
+        method: "PATCH",
+        headers: masterHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ active: btn.dataset.active === "true" }),
+      });
+    } else if (userAction === "unlock") {
+      res = await fetch(`${API_BASE_URL}/admin/users/${encodeURIComponent(email)}`, {
+        method: "PATCH",
+        headers: masterHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ unlock: true }),
+      });
+    } else if (userAction === "delete") {
+      if (!confirm(`Delete the account "${email}"? This cannot be undone.`)) return;
+      res = await fetch(`${API_BASE_URL}/admin/users/${encodeURIComponent(email)}`, {
+        method: "DELETE",
+        headers: masterHeaders(),
+      });
+    }
+    const data = await res.json();
+    if (!res.ok) {
+      resultBox.innerHTML = `<div class="error-text">${esc(data.error || "Action failed.")}</div>`;
+      return;
+    }
+    await loadUserList();
+  } catch (err) {
+    resultBox.innerHTML = `<div class="error-text">${esc(err.message)}</div>`;
+  }
+});
+
+document.getElementById("createUserBtn").addEventListener("click", async () => {
+  const email = document.getElementById("newUserEmail").value.trim();
+  const password = document.getElementById("newUserPassword").value;
+  const role = document.getElementById("newUserRole").value;
+  const resultBox = document.getElementById("userMgmtResult");
+  resultBox.textContent = "";
+
+  if (!email || !password) {
+    resultBox.innerHTML = `<div class="error-text">Email and password are required.</div>`;
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/admin/users`, {
+      method: "POST",
+      headers: masterHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ email, password, role }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      resultBox.innerHTML = `<div class="error-text">${esc(data.error || "Could not create account.")}</div>`;
+      return;
+    }
+    document.getElementById("newUserEmail").value = "";
+    document.getElementById("newUserPassword").value = "";
+    resultBox.innerHTML = `<div class="import-summary">Created ${esc(data.email)} as ${esc(data.role)}.</div>`;
+    await loadUserList();
+  } catch (err) {
+    resultBox.innerHTML = `<div class="error-text">${esc(err.message)}</div>`;
+  }
 });
 
 // ---------------------------------------------------------------- disease list
@@ -104,6 +297,7 @@ async function loadDiseaseList() {
 
 function renderDiseaseList() {
   const filter = document.getElementById("listFilter").value.trim().toLowerCase();
+  const isAdmin = currentRole === "admin";
   const rows = allDiseases
     .filter((d) => {
       if (!filter) return true;
@@ -123,8 +317,8 @@ function renderDiseaseList() {
         <td>${d.updatedAt ? new Date(d.updatedAt).toLocaleDateString() : ""}</td>
         <td class="row-actions">
           <button data-action="edit" data-slug="${esc(d.slug)}">Edit</button>
-          ${d.reviewStatus !== "published" ? `<button data-action="publish" data-slug="${esc(d.slug)}">Publish</button>` : ""}
-          <button data-action="delete" data-slug="${esc(d.slug)}" class="danger">Delete</button>
+          ${isAdmin && d.reviewStatus !== "published" ? `<button data-action="publish" data-slug="${esc(d.slug)}">Publish</button>` : ""}
+          ${isAdmin ? `<button data-action="delete" data-slug="${esc(d.slug)}" class="danger">Delete</button>` : ""}
         </td>
       </tr>`
     )
@@ -150,12 +344,14 @@ document.getElementById("diseaseListBody").addEventListener("click", async (e) =
   if (action === "publish") {
     await adminFetch(`/diseases/${encodeURIComponent(slug)}/publish`, { method: "POST" });
     await loadDiseaseList();
+    if (currentRole === "admin") await loadAuditLog();
   }
 
   if (action === "delete") {
     if (!confirm(`Delete "${slug}" permanently? This cannot be undone.`)) return;
     await adminFetch(`/diseases/${encodeURIComponent(slug)}`, { method: "DELETE" });
     await loadDiseaseList();
+    if (currentRole === "admin") await loadAuditLog();
   }
 });
 
@@ -251,7 +447,6 @@ function clearRepeater(containerId) {
 
 // ---------------------------------------------------------------- editor
 
-const SIMPLE_LIST_REPEATERS = { "rep-precautions": true };
 const OBJECT_REPEATERS = [
   "rep-commonName",
   "rep-nidana",
@@ -306,6 +501,8 @@ function openEditor(disease) {
   } else {
     form.slug.disabled = false;
   }
+
+  applyRoleVisibility(currentRole);
 }
 
 document.getElementById("newDiseaseBtn").addEventListener("click", () => openEditor(null));
@@ -376,12 +573,13 @@ document.getElementById("diseaseForm").addEventListener("submit", async (e) => {
 
     closeEditor();
     await loadDiseaseList();
+    if (currentRole === "admin") await loadAuditLog();
   } catch (err) {
     errorBox.textContent = "Request failed: " + err.message;
   }
 });
 
-// ---------------------------------------------------------------- excel import/export
+// ---------------------------------------------------------------- excel import/export (admin only)
 
 async function downloadFile(path, filename) {
   const res = await adminFetch(path);
@@ -443,18 +641,46 @@ document.getElementById("uploadExcelBtn").addEventListener("click", async () => 
 
     fileInput.value = "";
     await loadDiseaseList();
+    await loadAuditLog();
   } catch (err) {
     resultBox.innerHTML = `<div class="error-text">Upload failed: ${esc(err.message)}</div>`;
   }
 });
 
+// ---------------------------------------------------------------- audit log (admin only)
+
+async function loadAuditLog() {
+  try {
+    const res = await adminFetch("/diseases/audit-log?limit=100");
+    if (!res.ok) return; // 403 for non-admins is expected, just skip silently
+    const entries = await res.json();
+    renderAuditLog(entries);
+  } catch (err) {
+    // adminFetch already handles 401; other errors just leave the table as-is
+  }
+}
+
+function renderAuditLog(entries) {
+  const rows = entries
+    .map(
+      (e) => `
+      <tr>
+        <td>${new Date(e.createdAt).toLocaleString()}</td>
+        <td>${esc(e.action)}</td>
+        <td>${esc(e.slug || "")}</td>
+        <td>${esc(e.performedByEmail)} <span class="role-note">(${esc(e.performedByRole)})</span></td>
+        <td>${esc(e.summary || "")}</td>
+      </tr>`
+    )
+    .join("");
+  document.getElementById("auditLogBody").innerHTML =
+    rows || `<tr><td colspan="5" class="muted">No activity recorded yet.</td></tr>`;
+}
+
+document.getElementById("refreshAuditBtn").addEventListener("click", loadAuditLog);
+
 // ---------------------------------------------------------------- boot
 
 (function init() {
-  const key = getKey();
-  if (key) {
-    tryConnect(key);
-  } else {
-    showLoginGate();
-  }
+  trySession();
 })();
