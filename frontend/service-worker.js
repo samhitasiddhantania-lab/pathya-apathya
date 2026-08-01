@@ -1,4 +1,4 @@
-const CACHE_NAME = "pathya-advisor-shell-v1";
+const CACHE_NAME = "pathya-advisor-shell-v2"; // bumped to flush stale v1 caches on install
 const SHELL_FILES = [
   "./index.html",
   "./css/style.css",
@@ -35,7 +35,18 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Network-first: always try to get the latest file from the server. Only
+  // fall back to the cached copy if the network request fails (i.e. the
+  // user is actually offline). This ensures a fresh deploy is picked up on
+  // the very next reload instead of being masked by a stale cache
+  // indefinitely, while still preserving offline support.
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    fetch(event.request)
+      .then((networkResponse) => {
+        const responseClone = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+        return networkResponse;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
