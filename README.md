@@ -267,6 +267,22 @@ examples for every column.
 `jsonwebtoken` (per-user auth) — all already in `backend/package.json`, so a normal
 `npm install` in `backend/` picks them up.
 
+### 9.4 QR codes for printed patient handouts
+
+Each disease row in the admin panel has a "QR" button. Clicking it shows a QR code
+encoding a direct link back into the app — e.g. `index.html?slug=pandu` — that opens
+straight to that disease's **patient-mode** page (skipping search entirely). Useful
+for printing a permanent QR code per disease into a physical reference book: a patient
+scans it with their phone camera and lands directly on the simple, patient-friendly
+version of that condition.
+
+- **Copy link** copies the URL if you'd rather generate/design the QR yourself.
+- **Download PNG** saves a 600×600 QR image (via the free api.qrserver.com service —
+  no new backend dependency) named `<slug>-qr.png`, ready to drop into a print layout.
+
+This works regardless of where the frontend is hosted (root domain or a subfolder) —
+the link is built relative to wherever `admin.html` is running.
+
 ---
 
 ## 10. Troubleshooting

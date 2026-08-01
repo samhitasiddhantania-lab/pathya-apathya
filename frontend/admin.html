@@ -113,6 +113,29 @@
       </div>
     </section>
 
+    <!-- ---------- QR code viewer ---------- -->
+    <section class="card" id="qrSection" style="display:none;">
+      <div class="section-header">
+        <h2>📱 QR Code</h2>
+        <button id="closeQrBtn" class="link-btn">✕ Close</button>
+      </div>
+      <p id="qrDiseaseName" class="muted"></p>
+      <p class="muted">
+        Scanning this opens directly to the patient-friendly page for this disease —
+        no searching needed.
+      </p>
+      <div class="form-row" style="margin-bottom:12px;">
+        <input id="qrLinkText" type="text" readonly />
+        <button id="copyQrLinkBtn" class="btn-secondary">Copy link</button>
+      </div>
+      <div class="qr-display">
+        <img id="qrImage" alt="QR code" />
+      </div>
+      <div class="button-row" style="margin-top:14px;">
+        <button id="downloadQrBtn" class="btn-primary">⬇ Download PNG</button>
+      </div>
+    </section>
+
     <!-- ---------- Editor form ---------- -->
     <section class="card" id="editorSection" style="display:none;">
       <div class="section-header">

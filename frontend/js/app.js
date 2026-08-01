@@ -105,3 +105,16 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("service-worker.js").catch((e) => console.warn("SW failed", e));
   });
 }
+
+// --- QR code deep-linking ---------------------------------------------
+// A link like index.html?slug=pandu (as encoded into a printed QR code)
+// opens straight to that disease in patient mode, skipping the search step.
+// See admin.html's "QR Code" button for how these links are generated.
+(function handleDeepLink() {
+  const params = new URLSearchParams(window.location.search);
+  const slug = params.get("slug");
+  if (!slug) return;
+
+  switchMode("patient");
+  loadDisease(slug);
+})();

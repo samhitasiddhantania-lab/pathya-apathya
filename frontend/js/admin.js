@@ -317,6 +317,7 @@ function renderDiseaseList() {
         <td>${d.updatedAt ? new Date(d.updatedAt).toLocaleDateString() : ""}</td>
         <td class="row-actions">
           <button data-action="edit" data-slug="${esc(d.slug)}">Edit</button>
+          <button data-action="qr" data-slug="${esc(d.slug)}" data-name="${esc(d.sanskritName)}">QR</button>
           ${isAdmin && d.reviewStatus !== "published" ? `<button data-action="publish" data-slug="${esc(d.slug)}">Publish</button>` : ""}
           ${isAdmin ? `<button data-action="delete" data-slug="${esc(d.slug)}" class="danger">Delete</button>` : ""}
         </td>
@@ -341,6 +342,10 @@ document.getElementById("diseaseListBody").addEventListener("click", async (e) =
     openEditor(disease);
   }
 
+  if (action === "qr") {
+    openQrViewer(slug, btn.dataset.name);
+  }
+
   if (action === "publish") {
     await adminFetch(`/diseases/${encodeURIComponent(slug)}/publish`, { method: "POST" });
     await loadDiseaseList();
@@ -352,6 +357,79 @@ document.getElementById("diseaseListBody").addEventListener("click", async (e) =
     await adminFetch(`/diseases/${encodeURIComponent(slug)}`, { method: "DELETE" });
     await loadDiseaseList();
     if (currentRole === "admin") await loadAuditLog();
+  }
+});
+
+// ---------------------------------------------------------------- QR code viewer
+// Generates a printable QR code per disease, encoding a deep link back into
+// this app (index.html?slug=...) that opens straight to the patient-mode
+// view — see app.js's handleDeepLink(). Uses the free api.qrserver.com
+// service to render the actual QR image, so nothing new to install.
+
+function buildPatientLink(slug) {
+  // Works out index.html's URL relative to wherever admin.html is hosted,
+  // so this keeps working whether the site sits at the domain root or in
+  // a subfolder.
+  const indexUrl = new URL("index.html", window.location.href);
+  indexUrl.search = `?slug=${encodeURIComponent(slug)}`;
+  return indexUrl.toString();
+}
+
+function qrImageUrl(link, size = 400) {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(link)}`;
+}
+
+let currentQrSlug = null;
+
+function openQrViewer(slug, name) {
+  currentQrSlug = slug;
+  const link = buildPatientLink(slug);
+  document.getElementById("qrDiseaseName").textContent = `${name} (${slug})`;
+  document.getElementById("qrLinkText").value = link;
+  document.getElementById("qrImage").src = qrImageUrl(link);
+  document.getElementById("qrSection").style.display = "block";
+  document.getElementById("qrSection").scrollIntoView({ behavior: "smooth" });
+}
+
+document.getElementById("closeQrBtn").addEventListener("click", () => {
+  document.getElementById("qrSection").style.display = "none";
+  currentQrSlug = null;
+});
+
+document.getElementById("copyQrLinkBtn").addEventListener("click", async () => {
+  const input = document.getElementById("qrLinkText");
+  input.select();
+  try {
+    await navigator.clipboard.writeText(input.value);
+    const btn = document.getElementById("copyQrLinkBtn");
+    const original = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(() => (btn.textContent = original), 1500);
+  } catch (err) {
+    // Clipboard API can fail without HTTPS/permissions — the text is
+    // still selected, so a manual Ctrl+C still works as a fallback.
+  }
+});
+
+document.getElementById("downloadQrBtn").addEventListener("click", async () => {
+  if (!currentQrSlug) return;
+  const link = buildPatientLink(currentQrSlug);
+  const imgUrl = qrImageUrl(link, 600); // higher res for print
+  try {
+    const res = await fetch(imgUrl);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${currentQrSlug}-qr.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    // Cross-origin fetch blocked or offline — fall back to opening the
+    // image directly so the user can right-click "Save image as...".
+    window.open(imgUrl, "_blank");
   }
 });
 
