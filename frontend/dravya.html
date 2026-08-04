@@ -171,11 +171,12 @@
       <section class="card">
         <h2>Patient habit analyzer</h2>
         <p class="muted">
-          One-off check — nothing is saved. Pick the Dravyas the patient habitually consumes
-          (frequency is optional). This tallies the qualities involved — it does not diagnose anything.
+          One-off check — nothing is saved. Check the Dravyas the patient habitually consumes, and
+          optionally check a frequency for each (defaults to occasional). This tallies the qualities
+          involved — it does not diagnose anything.
         </p>
-        <div id="analyzerRows"></div>
-        <button type="button" id="addAnalyzerRowBtn" class="btn-secondary">+ Add Dravya</button>
+        <input id="analyzerDravyaFilter" type="text" placeholder="Filter Dravyas..." class="filter-input" />
+        <div id="analyzerDravyaChecklist" class="analyzer-checklist"></div>
         <div class="button-row" style="margin-top:14px;">
           <button type="button" id="runAnalyzerBtn" class="btn-primary">🧮 Tally qualities</button>
         </div>
@@ -183,15 +184,15 @@
       </section>
 
       <section class="card">
-        <h2>What's good for a diagnosis</h2>
+        <h2>Dosha reading (Vata · Pitta · Kapha)</h2>
         <p class="muted">
-          Separately, pick the diagnosis (from the same indication checkboxes) to see which qualities
-          are commonly indicated for it, based on the Dravya entries checked for that indication.
+          Interpreted automatically from the Rasa tally above, using the classical rasa→dosha
+          relationships (each taste's known effect on Vata, Pitta and Kapha), weighted by frequency.
+          This is a general reading of the habitual diet, not a diagnosis.
         </p>
-        <select id="diagnosisIndicationSelect">
-          <option value="">— choose a diagnosis —</option>
-        </select>
-        <div id="diagnosisResult" style="margin-top:16px;"></div>
+        <div id="doshaAnalysisResult">
+          <p class="muted">Run the tally above to see a Dosha reading here.</p>
+        </div>
       </section>
     </div>
 

@@ -220,13 +220,9 @@ function populateIndicationSelects() {
     `<option value="">— choose an indication —</option>` +
     (allTags.indication || []).map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
   const browseSel = document.getElementById("browseIndicationSelect");
-  const diagSel = document.getElementById("diagnosisIndicationSelect");
   const browsePrev = browseSel.value;
-  const diagPrev = diagSel.value;
   browseSel.innerHTML = options;
-  diagSel.innerHTML = options.replace("choose an indication", "choose a diagnosis");
   browseSel.value = browsePrev;
-  diagSel.value = diagPrev;
 }
 
 // ---------------------------------------------------------------- Dravya list
@@ -235,7 +231,7 @@ async function loadDravyaList() {
   const res = await dravyaFetch("/");
   allDravyas = await res.json();
   renderDravyaTable();
-  refreshAnalyzerDravyaOptions();
+  renderAnalyzerChecklist();
 }
 
 function renderDravyaTable() {
@@ -475,38 +471,87 @@ document.getElementById("browseIndicationSelect").addEventListener("change", asy
 
 // ---------------------------------------------------------------- habit analyzer
 
-function refreshAnalyzerDravyaOptions() {
-  document.querySelectorAll(".analyzer-row select.dravya-select").forEach((sel) => {
-    const prev = sel.value;
-    sel.innerHTML =
-      `<option value="">— choose a Dravya —</option>` +
-      allDravyas.map((d) => `<option value="${d._id}">${esc(d.name)}</option>`).join("");
-    sel.value = prev;
+const FREQUENCIES = [
+  { value: "occasional", label: "Occasional" },
+  { value: "weekly", label: "Weekly" },
+  { value: "daily", label: "Daily" },
+];
+
+// Remembers checked state across re-renders (e.g. when the filter box narrows
+// the list) so ticking a box doesn't get lost as the checklist redraws.
+let analyzerChecked = {}; // { [dravyaId]: frequency|null }
+
+function renderAnalyzerChecklist() {
+  const wrap = document.getElementById("analyzerDravyaChecklist");
+  const filter = (document.getElementById("analyzerDravyaFilter").value || "").trim().toLowerCase();
+  const list = filter ? allDravyas.filter((d) => d.name.toLowerCase().includes(filter)) : allDravyas;
+
+  if (!list.length) {
+    wrap.innerHTML = `<p class="muted">No Dravyas match.</p>`;
+    return;
+  }
+
+  wrap.innerHTML = list
+    .map((d) => {
+      const checked = Object.prototype.hasOwnProperty.call(analyzerChecked, d._id);
+      const freq = analyzerChecked[d._id] || null;
+      return `
+      <div class="analyzer-item" data-id="${d._id}">
+        <label class="analyzer-item-name">
+          <input type="checkbox" class="dravya-check" data-id="${d._id}" ${checked ? "checked" : ""} />
+          ${esc(d.name)}${d.commonName ? ` <span class="muted">(${esc(d.commonName)})</span>` : ""}
+        </label>
+        <div class="freq-chip-row" ${checked ? "" : 'style="display:none;"'}>
+          ${FREQUENCIES.map(
+            (f) => `
+            <label class="freq-chip">
+              <input type="checkbox" class="freq-check" data-id="${d._id}" data-freq="${f.value}" ${
+              freq === f.value ? "checked" : ""
+            } />
+              ${f.label}
+            </label>`
+          ).join("")}
+        </div>
+      </div>`;
+    })
+    .join("");
+
+  wrap.querySelectorAll(".dravya-check").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      const id = cb.dataset.id;
+      const item = wrap.querySelector(`.analyzer-item[data-id="${id}"]`);
+      const freqRow = item.querySelector(".freq-chip-row");
+      if (cb.checked) {
+        analyzerChecked[id] = analyzerChecked[id] || null;
+        freqRow.style.display = "flex";
+      } else {
+        delete analyzerChecked[id];
+        freqRow.style.display = "none";
+        freqRow.querySelectorAll(".freq-check").forEach((f) => (f.checked = false));
+      }
+    });
+  });
+
+  wrap.querySelectorAll(".freq-check").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      const id = cb.dataset.id;
+      const item = wrap.querySelector(`.analyzer-item[data-id="${id}"]`);
+      if (cb.checked) {
+        // Frequency is single-valued per Dravya — checking one unchecks the
+        // others, so this behaves like a radio group but keeps the checkbox
+        // look the whole module already uses.
+        item.querySelectorAll(".freq-check").forEach((other) => {
+          if (other !== cb) other.checked = false;
+        });
+        analyzerChecked[id] = cb.dataset.freq;
+      } else {
+        analyzerChecked[id] = null;
+      }
+    });
   });
 }
 
-function addAnalyzerRow() {
-  const wrap = document.getElementById("analyzerRows");
-  const row = document.createElement("div");
-  row.className = "analyzer-row";
-  row.innerHTML = `
-    <select class="dravya-select">
-      <option value="">— choose a Dravya —</option>
-      ${allDravyas.map((d) => `<option value="${d._id}">${esc(d.name)}</option>`).join("")}
-    </select>
-    <select class="freq-select">
-      <option value="">Frequency (optional)</option>
-      <option value="occasional">Occasional</option>
-      <option value="weekly">Weekly</option>
-      <option value="daily">Daily</option>
-    </select>
-    <button type="button" class="link-btn remove-row-btn" style="color:#b00;">✕ Remove</button>
-  `;
-  row.querySelector(".remove-row-btn").addEventListener("click", () => row.remove());
-  wrap.appendChild(row);
-}
-
-document.getElementById("addAnalyzerRowBtn").addEventListener("click", addAnalyzerRow);
+document.getElementById("analyzerDravyaFilter").addEventListener("input", renderAnalyzerChecklist);
 
 function renderTallyHtml(tally) {
   const groups = ["rasa", "guna", "dosha"];
@@ -526,16 +571,14 @@ function renderTallyHtml(tally) {
 
 document.getElementById("runAnalyzerBtn").addEventListener("click", async () => {
   const resultBox = document.getElementById("analyzerResult");
-  const rows = [...document.querySelectorAll("#analyzerRows .analyzer-row")];
-  const items = rows
-    .map((row) => ({
-      dravyaId: row.querySelector(".dravya-select").value,
-      frequency: row.querySelector(".freq-select").value || null,
-    }))
-    .filter((i) => i.dravyaId);
+  const doshaBox = document.getElementById("doshaAnalysisResult");
+  const items = Object.entries(analyzerChecked).map(([dravyaId, frequency]) => ({
+    dravyaId,
+    frequency: frequency || null,
+  }));
 
   if (!items.length) {
-    resultBox.innerHTML = `<div class="error-text">Add at least one Dravya first.</div>`;
+    resultBox.innerHTML = `<div class="error-text">Check at least one Dravya first.</div>`;
     return;
   }
 
@@ -557,36 +600,91 @@ document.getElementById("runAnalyzerBtn").addEventListener("click", async () => 
         .join(", ")}</p>
       ${renderTallyHtml(data.tally)}
     `;
+    doshaBox.innerHTML = renderDoshaAnalysisHtml(data.tally);
   } catch (err) {
     // dravyaFetch already handles 401
   }
 });
 
-// ---------------------------------------------------------------- what's good for a diagnosis
+// ---------------------------------------------------------------- Dosha reading (Vata/Pitta/Kapha)
 
-document.getElementById("diagnosisIndicationSelect").addEventListener("change", async (e) => {
-  const tag = e.target.value;
-  const resultBox = document.getElementById("diagnosisResult");
-  if (!tag) {
-    resultBox.innerHTML = "";
-    return;
-  }
-  resultBox.innerHTML = `<p class="muted">Loading…</p>`;
-  try {
-    const res = await dravyaFetch(`/quality-profile/${encodeURIComponent(tag)}`);
-    const profile = await res.json();
-    resultBox.innerHTML = `
-      <p class="muted">Derived from ${profile.dravyaCount} Dravya(s) checked for "${esc(tag)}".</p>
-      ${renderTallyHtml(profile.tally)}
-    `;
-  } catch (err) {
-    // dravyaFetch already handles 401
-  }
-});
+// Classical rasa → dosha relationships (each taste's known effect on the
+// three doshas — Charaka/Ashtanga Hridaya Sutrasthana): -1 pacifies,
+// +1 aggravates. Matching is by keyword so it works whether the checkbox
+// was typed in Sanskrit or English.
+const RASA_DOSHA_EFFECT = [
+  { keys: ["madhur", "sweet"], vata: -1, pitta: -1, kapha: 1 },
+  { keys: ["amla", "sour"], vata: -1, pitta: 1, kapha: 1 },
+  { keys: ["lavan", "salt"], vata: -1, pitta: 1, kapha: 1 },
+  { keys: ["katu", "pungent"], vata: 1, pitta: 1, kapha: -1 },
+  { keys: ["tikta", "bitter"], vata: 1, pitta: -1, kapha: -1 },
+  { keys: ["kashay", "kasay", "astringent"], vata: 1, pitta: -1, kapha: -1 },
+];
+
+function matchRasaEffect(rasaLabel) {
+  const norm = rasaLabel.toLowerCase();
+  return RASA_DOSHA_EFFECT.find((r) => r.keys.some((k) => norm.includes(k))) || null;
+}
+
+// Weighted +/- score per dosha, derived purely from the Rasa tally (each
+// Rasa's tally count is already frequency-weighted by the backend).
+function computeDoshaScores(tally) {
+  const scores = { vata: 0, pitta: 0, kapha: 0 };
+  const unmatched = [];
+  Object.entries(tally.rasa || {}).forEach(([rasa, count]) => {
+    const effect = matchRasaEffect(rasa);
+    if (!effect) {
+      unmatched.push(rasa);
+      return;
+    }
+    scores.vata += effect.vata * count;
+    scores.pitta += effect.pitta * count;
+    scores.kapha += effect.kapha * count;
+  });
+  return { scores, unmatched };
+}
+
+function doshaVerdict(score) {
+  if (score >= 3) return { label: "Aggravating", cls: "dosha-up-strong" };
+  if (score > 0) return { label: "Mildly aggravating", cls: "dosha-up" };
+  if (score === 0) return { label: "Balanced", cls: "dosha-neutral" };
+  if (score > -3) return { label: "Mildly pacifying", cls: "dosha-down" };
+  return { label: "Pacifying", cls: "dosha-down-strong" };
+}
+
+function renderDoshaAnalysisHtml(tally) {
+  const { scores, unmatched } = computeDoshaScores(tally);
+  const doshas = [
+    { key: "vata", label: "Vata" },
+    { key: "pitta", label: "Pitta" },
+    { key: "kapha", label: "Kapha" },
+  ];
+
+  const cards = doshas
+    .map(({ key, label }) => {
+      const v = doshaVerdict(scores[key]);
+      return `
+      <div class="dosha-card ${v.cls}">
+        <div class="dosha-card-name">${label}</div>
+        <div class="dosha-card-score">${scores[key] > 0 ? "+" : ""}${scores[key]}</div>
+        <div class="dosha-card-verdict">${v.label}</div>
+      </div>`;
+    })
+    .join("");
+
+  const note =
+    unmatched.length
+      ? `<p class="muted" style="margin-top:10px;">
+          Not scored (Rasa label didn't match a known taste — Madhura/Amla/Lavana/Katu/Tikta/Kashaya):
+          ${unmatched.map((r) => `<span class="tag-pill">${esc(r)}</span>`).join("")}
+        </p>`
+      : "";
+
+  return `<div class="dosha-card-row">${cards}</div>${note}`;
+}
 
 // ---------------------------------------------------------------- boot
 
 (function init() {
   trySession();
-  addAnalyzerRow(); // start with one row so the analyzer isn't empty
 })();

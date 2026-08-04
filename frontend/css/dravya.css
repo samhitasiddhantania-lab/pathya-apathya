@@ -67,26 +67,108 @@
   margin: 1px 2px;
 }
 
-.analyzer-row {
+.analyzer-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 10px 0;
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+}
+
+.analyzer-item {
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.analyzer-item:hover {
+  background: #faf6ef;
+}
+
+.analyzer-item-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.analyzer-item-name input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+}
+
+.freq-chip-row {
   display: flex;
   gap: 8px;
+  margin: 6px 0 4px 24px;
+}
+
+.freq-chip {
+  display: flex;
   align-items: center;
-  margin-bottom: 8px;
+  gap: 5px;
+  font-size: 12.5px;
+  font-weight: 400;
+  background: #f4ede1;
+  padding: 4px 9px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.freq-chip input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+}
+
+.dosha-card-row {
+  display: flex;
+  gap: 12px;
   flex-wrap: wrap;
+  margin-top: 10px;
 }
 
-.analyzer-row select {
-  flex: 2;
-  min-width: 180px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-}
-
-.analyzer-row select.freq-select {
+.dosha-card {
   flex: 1;
-  min-width: 120px;
+  min-width: 140px;
+  border-radius: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  text-align: center;
 }
+
+.dosha-card-name {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.dosha-card-score {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.dosha-card-verdict {
+  font-size: 12.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.dosha-up-strong { background: #fdeceb; border-color: #f2b8b5; }
+.dosha-up-strong .dosha-card-score { color: #b3261e; }
+.dosha-up { background: #fdf4ec; border-color: #f0d3ae; }
+.dosha-up .dosha-card-score { color: #a15c1e; }
+.dosha-neutral { background: #f4ede1; }
+.dosha-down { background: #eef6ee; border-color: #b9dcb9; }
+.dosha-down .dosha-card-score { color: #2e7d32; }
+.dosha-down-strong { background: #e6f4e9; border-color: #9bcda1; }
+.dosha-down-strong .dosha-card-score { color: #1b5e20; }
 
 .tally-table {
   width: 100%;
@@ -120,7 +202,7 @@
   font-size: 14px;
 }
 
-#browseIndicationSelect, #diagnosisIndicationSelect {
+#browseIndicationSelect {
   width: 100%;
   max-width: 360px;
   padding: 9px 12px;
