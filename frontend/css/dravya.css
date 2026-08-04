@@ -90,16 +90,27 @@
 
 .analyzer-item-name {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 7px;
+  flex-wrap: wrap;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
 }
 
+.analyzer-item-hint {
+  font-size: 12px;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--muted);
+  opacity: 0.55;
+  white-space: normal;
+}
+
 .analyzer-item-name input[type="checkbox"] {
   width: 15px;
   height: 15px;
+  align-self: center;
 }
 
 .freq-chip-row {

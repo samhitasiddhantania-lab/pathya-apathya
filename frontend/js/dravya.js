@@ -495,11 +495,20 @@ function renderAnalyzerChecklist() {
     .map((d) => {
       const checked = Object.prototype.hasOwnProperty.call(analyzerChecked, d._id);
       const freq = analyzerChecked[d._id] || null;
+      const qualityBits = [
+        (d.rasa || []).join(", "),
+        (d.guna || []).join(", "),
+        (d.dosha || []).join(", "),
+      ].filter(Boolean);
+      const qualityHint = qualityBits.length
+        ? `<span class="analyzer-item-hint">${esc(qualityBits.join(" · "))}</span>`
+        : "";
       return `
       <div class="analyzer-item" data-id="${d._id}">
         <label class="analyzer-item-name">
           <input type="checkbox" class="dravya-check" data-id="${d._id}" ${checked ? "checked" : ""} />
-          ${esc(d.name)}${d.commonName ? ` <span class="muted">(${esc(d.commonName)})</span>` : ""}
+          <span>${esc(d.name)}${d.commonName ? ` <span class="muted">(${esc(d.commonName)})</span>` : ""}</span>
+          ${qualityHint}
         </label>
         <div class="freq-chip-row" ${checked ? "" : 'style="display:none;"'}>
           ${FREQUENCIES.map(
