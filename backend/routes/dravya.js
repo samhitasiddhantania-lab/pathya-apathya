@@ -13,7 +13,26 @@ const {
   buildExportWorkbook,
 } = require("../utils/dravyaExcelSheet");
 
-const CATEGORIES = ["rasa", "guna", "dosha", "indication"];
+const CATEGORIES = ["rasa", "guna", "dosha", "varga", "indication"];
+
+// Classical Charaka Samhita food-group classification (Sutrasthana 27,
+// "Annapana Vidhi Adhyaya") — offered as a one-click starter set so editors
+// don't have to type each one by hand the first time. Adding any of these
+// (or a custom one) works exactly like every other growing checkbox list.
+const CLASSICAL_VARGAS = [
+  "Shukadhanya Varga", // cereals/grains
+  "Shamidhanya Varga", // pulses/legumes
+  "Mamsa Varga", // meats
+  "Shaka Varga", // vegetables/greens
+  "Phala Varga", // fruits
+  "Harita Varga", // fresh/raw greens
+  "Madya Varga", // fermented/alcoholic drinks
+  "Jala Varga", // water/liquids
+  "Gorasa Varga", // milk & dairy
+  "Ikshu Varga", // sugarcane products
+  "Kritanna Varga", // prepared/cooked-dish foods
+  "Ahara Yogi Varga", // food adjuncts (oils, salts, condiments)
+];
 
 // Kept in memory only — parsed and discarded, never written to disk.
 const upload = multer({
@@ -51,15 +70,29 @@ async function ensureTag(category, value, email) {
 
 // ---------------------------------------------------------------- tags (growing checkbox lists)
 
-// GET /api/dravya/tags -> { rasa: [...], guna: [...], dosha: [...], indication: [...] }
+// GET /api/dravya/tags -> { rasa: [...], guna: [...], dosha: [...], varga: [...], indication: [...] }
 router.get("/tags", async (req, res) => {
   try {
     const all = await DravyaTag.find().sort({ value: 1 });
-    const grouped = { rasa: [], guna: [], dosha: [], indication: [] };
+    const grouped = { rasa: [], guna: [], dosha: [], varga: [], indication: [] };
     all.forEach((t) => grouped[t.category].push(t.value));
     res.json(grouped);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/dravya/tags/seed-vargas -> registers the standard classical
+// Varga list in one click (skips any that already exist). Any logged-in
+// editor can run this, same as adding a single checkbox.
+router.post("/tags/seed-vargas", async (req, res) => {
+  try {
+    const tags = await Promise.all(
+      CLASSICAL_VARGAS.map((v) => ensureTag("varga", v, req.user.email))
+    );
+    res.json({ added: tags.map((t) => t.value) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 
@@ -246,7 +279,7 @@ router.post("/import", requireRole("admin"), upload.single("file"), async (req, 
       }
       affectedNames.push(parsed.name);
 
-      ["rasa", "guna", "dosha", "indications"].forEach((field) => {
+      ["rasa", "guna", "dosha", "varga", "indications"].forEach((field) => {
         const category = field === "indications" ? "indication" : field;
         (parsed[field] || []).forEach((v) => tagPromises.push(ensureTag(category, v, req.user.email)));
       });
@@ -289,7 +322,7 @@ router.get("/:id", async (req, res) => {
 // even if the client didn't separately call POST /tags first.
 router.post("/", async (req, res) => {
   try {
-    const { name, commonName, notes, rasa = [], guna = [], dosha = [], indications = [] } = req.body;
+    const { name, commonName, notes, rasa = [], guna = [], dosha = [], varga = [], indications = [] } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ error: "name is required" });
     }
@@ -301,6 +334,7 @@ router.post("/", async (req, res) => {
       rasa,
       guna,
       dosha,
+      varga,
       indications,
       createdByEmail: req.user.email,
     });
@@ -310,6 +344,7 @@ router.post("/", async (req, res) => {
       ...rasa.map((v) => ensureTag("rasa", v, req.user.email)),
       ...guna.map((v) => ensureTag("guna", v, req.user.email)),
       ...dosha.map((v) => ensureTag("dosha", v, req.user.email)),
+      ...varga.map((v) => ensureTag("varga", v, req.user.email)),
       ...indications.map((v) => ensureTag("indication", v, req.user.email)),
     ]);
 
@@ -333,14 +368,15 @@ router.put("/:id", async (req, res) => {
     const existing = await Dravya.findById(req.params.id);
     if (!existing) return res.status(404).json({ error: "Dravya not found" });
 
-    const { name, commonName, notes, rasa = [], guna = [], dosha = [], indications = [] } = req.body;
-    Object.assign(existing, { name, commonName, notes, rasa, guna, dosha, indications });
+    const { name, commonName, notes, rasa = [], guna = [], dosha = [], varga = [], indications = [] } = req.body;
+    Object.assign(existing, { name, commonName, notes, rasa, guna, dosha, varga, indications });
     await existing.save();
 
     await Promise.all([
       ...rasa.map((v) => ensureTag("rasa", v, req.user.email)),
       ...guna.map((v) => ensureTag("guna", v, req.user.email)),
       ...dosha.map((v) => ensureTag("dosha", v, req.user.email)),
+      ...varga.map((v) => ensureTag("varga", v, req.user.email)),
       ...indications.map((v) => ensureTag("indication", v, req.user.email)),
     ]);
 

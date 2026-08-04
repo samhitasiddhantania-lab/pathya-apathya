@@ -8,7 +8,7 @@ const TOKEN_STORAGE = "pathya_admin_token";
 const EMAIL_STORAGE = "pathya_admin_email";
 const ROLE_STORAGE = "pathya_admin_role";
 
-let allTags = { rasa: [], guna: [], dosha: [], indication: [] };
+let allTags = { rasa: [], guna: [], dosha: [], varga: [], indication: [] };
 let allDravyas = [];
 let editingId = null;
 let currentRole = null;
@@ -151,7 +151,7 @@ document.querySelectorAll(".dravya-tab-btn").forEach((btn) => {
 
 // ---------------------------------------------------------------- tags (growing checkbox lists)
 
-const CATEGORIES = ["rasa", "guna", "dosha", "indication"];
+const CATEGORIES = ["rasa", "guna", "dosha", "varga", "indication"];
 
 async function loadTags() {
   const res = await dravyaFetch("/tags");
@@ -215,6 +215,23 @@ document.querySelectorAll(".add-checkbox-btn").forEach((btn) => {
   });
 });
 
+document.getElementById("seedVargasBtn").addEventListener("click", async () => {
+  const currentlyChecked = getCheckedValues("varga");
+  try {
+    const res = await dravyaFetch("/tags/seed-vargas", { method: "POST" });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || "Could not add the classical Vargas.");
+      return;
+    }
+    const tagsRes = await dravyaFetch("/tags");
+    allTags = await tagsRes.json();
+    renderCheckboxGroup("varga", currentlyChecked);
+  } catch (err) {
+    // dravyaFetch already handles 401
+  }
+});
+
 function populateIndicationSelects() {
   const options =
     `<option value="">— choose an indication —</option>` +
@@ -242,6 +259,7 @@ function renderDravyaTable() {
       (d) => `
       <tr>
         <td>${esc(d.name)}${d.commonName ? ` <span class="muted">(${esc(d.commonName)})</span>` : ""}</td>
+        <td>${(d.varga || []).map((v) => `<span class="tag-pill varga-pill">${esc(v)}</span>`).join("")}</td>
         <td>${(d.rasa || []).map((v) => `<span class="tag-pill">${esc(v)}</span>`).join("")}</td>
         <td>${(d.guna || []).map((v) => `<span class="tag-pill">${esc(v)}</span>`).join("")}</td>
         <td>${(d.dosha || []).map((v) => `<span class="tag-pill">${esc(v)}</span>`).join("")}</td>
@@ -254,7 +272,7 @@ function renderDravyaTable() {
     )
     .join("");
   document.getElementById("dravyaListBody").innerHTML =
-    rows || `<tr><td colspan="6" class="muted">No Dravya entries yet.</td></tr>`;
+    rows || `<tr><td colspan="7" class="muted">No Dravya entries yet.</td></tr>`;
 }
 
 document.getElementById("dravyaListFilter").addEventListener("input", renderDravyaTable);
@@ -368,6 +386,7 @@ function openDravyaEditor(dravya) {
   renderCheckboxGroup("rasa", dravya ? dravya.rasa || [] : []);
   renderCheckboxGroup("guna", dravya ? dravya.guna || [] : []);
   renderCheckboxGroup("dosha", dravya ? dravya.dosha || [] : []);
+  renderCheckboxGroup("varga", dravya ? dravya.varga || [] : []);
   renderCheckboxGroup("indication", dravya ? dravya.indications || [] : []);
 }
 
@@ -393,6 +412,7 @@ document.getElementById("dravyaForm").addEventListener("submit", async (e) => {
     rasa: getCheckedValues("rasa"),
     guna: getCheckedValues("guna"),
     dosha: getCheckedValues("dosha"),
+    varga: getCheckedValues("varga"),
     indications: getCheckedValues("indication"),
   };
 
@@ -445,22 +465,9 @@ document.getElementById("browseIndicationSelect").addEventListener("change", asy
     const list = await listRes.json();
     const profile = await profileRes.json();
 
-    const listHtml = list.length
-      ? `<table class="admin-table"><thead><tr><th>Name</th><th>Rasa</th><th>Guna</th><th>Dosha</th></tr></thead><tbody>${list
-          .map(
-            (d) => `<tr>
-              <td>${esc(d.name)}</td>
-              <td>${(d.rasa || []).map((v) => `<span class="tag-pill">${esc(v)}</span>`).join("")}</td>
-              <td>${(d.guna || []).map((v) => `<span class="tag-pill">${esc(v)}</span>`).join("")}</td>
-              <td>${(d.dosha || []).map((v) => `<span class="tag-pill">${esc(v)}</span>`).join("")}</td>
-            </tr>`
-          )
-          .join("")}</tbody></table>`
-      : `<p class="muted">No Dravyas checked for "${esc(tag)}" yet.</p>`;
-
     resultBox.innerHTML = `
       <h3>${list.length} Dravya(s) indicated for "${esc(tag)}"</h3>
-      ${listHtml}
+      ${renderVargaGroupsHtml(list)}
       <h3 style="margin-top:18px;">Quality profile (derived from these entries)</h3>
       ${renderTallyHtml(profile.tally)}
     `;
@@ -468,6 +475,61 @@ document.getElementById("browseIndicationSelect").addEventListener("change", asy
     // dravyaFetch already handles 401
   }
 });
+
+// Groups a list of Dravyas by Varga (classical Charaka food group) and
+// renders one card section per group — "you can consume this in Shaka
+// varga / Mamsa varga / etc." at a glance, instead of a flat list. A
+// Dravya with no Varga checked, or checked under more than one, shows up
+// under each group it belongs to (or "Unclassified" if none).
+function renderVargaGroupsHtml(list) {
+  if (!list.length) {
+    return `<p class="muted">No Dravyas checked for this indication yet.</p>`;
+  }
+
+  const groups = {}; // { vargaName: [dravya, ...] }
+  list.forEach((d) => {
+    const vargas = d.varga && d.varga.length ? d.varga : ["Unclassified"];
+    vargas.forEach((v) => {
+      if (!groups[v]) groups[v] = [];
+      groups[v].push(d);
+    });
+  });
+
+  // "Unclassified" sorts last, everything else alphabetically.
+  const groupNames = Object.keys(groups).sort((a, b) => {
+    if (a === "Unclassified") return 1;
+    if (b === "Unclassified") return -1;
+    return a.localeCompare(b);
+  });
+
+  return `<div class="varga-groups">${groupNames
+    .map(
+      (v) => `
+      <div class="varga-group">
+        <h4 class="varga-group-title">${v === "Unclassified" ? "Unclassified" : esc(v)}
+          <span class="muted">(${groups[v].length})</span>
+        </h4>
+        <div class="dravya-card-row">
+          ${groups[v]
+            .map(
+              (d) => `
+              <div class="dravya-card">
+                <div class="dravya-card-name">${esc(d.name)}${
+                d.commonName ? ` <span class="muted">(${esc(d.commonName)})</span>` : ""
+              }</div>
+                <div class="dravya-card-tags">
+                  ${(d.rasa || []).map((r) => `<span class="tag-pill">${esc(r)}</span>`).join("")}
+                  ${(d.guna || []).map((g) => `<span class="tag-pill">${esc(g)}</span>`).join("")}
+                  ${(d.dosha || []).map((ds) => `<span class="tag-pill">${esc(ds)}</span>`).join("")}
+                </div>
+              </div>`
+            )
+            .join("")}
+        </div>
+      </div>`
+    )
+    .join("")}</div>`;
+}
 
 // ---------------------------------------------------------------- habit analyzer
 
@@ -503,11 +565,15 @@ function renderAnalyzerChecklist() {
       const qualityHint = qualityBits.length
         ? `<span class="analyzer-item-hint">${esc(qualityBits.join(" · "))}</span>`
         : "";
+      const vargaBadges = (d.varga || [])
+        .map((v) => `<span class="tag-pill varga-pill">${esc(v)}</span>`)
+        .join("");
       return `
       <div class="analyzer-item" data-id="${d._id}">
         <label class="analyzer-item-name">
           <input type="checkbox" class="dravya-check" data-id="${d._id}" ${checked ? "checked" : ""} />
           <span>${esc(d.name)}${d.commonName ? ` <span class="muted">(${esc(d.commonName)})</span>` : ""}</span>
+          ${vargaBadges}
           ${qualityHint}
         </label>
         <div class="freq-chip-row" ${checked ? "" : 'style="display:none;"'}>

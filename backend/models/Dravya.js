@@ -17,6 +17,7 @@ const DravyaSchema = new mongoose.Schema(
     rasa: [String], // e.g. ["Madhura"]
     guna: [String], // e.g. ["Guru"]
     dosha: [String], // e.g. ["Vata-hara"]
+    varga: [String], // classical Charaka food-group classification, e.g. ["Shakavarga"] (vegetables), ["Phalavarga"] (fruits), ["Mamsavarga"] (meats) — lets a Dravya be filed under the same grouping the classics use
     indications: [String], // e.g. ["Pandu", "Amavata", "Swasa"] — checked diseases/conditions
 
     createdByEmail: String,
@@ -26,5 +27,6 @@ const DravyaSchema = new mongoose.Schema(
 
 DravyaSchema.index({ name: "text", commonName: "text" });
 DravyaSchema.index({ indications: 1 });
+DravyaSchema.index({ varga: 1 });
 
 module.exports = mongoose.model("Dravya", DravyaSchema);

@@ -25,7 +25,7 @@ function joinList(items) {
   return (items || []).join(` ${LIST_SEP} `);
 }
 
-const COLUMNS = ["name", "commonName", "notes", "rasa", "guna", "dosha", "indications"];
+const COLUMNS = ["name", "commonName", "notes", "rasa", "guna", "dosha", "varga", "indications"];
 
 const EXAMPLE_ROW = {
   name: "Dadima",
@@ -34,6 +34,7 @@ const EXAMPLE_ROW = {
   rasa: "Madhura | Amla",
   guna: "Guru",
   dosha: "Vata-hara",
+  varga: "Phala Varga",
   indications: "Pandu | Amavata | Swasa",
 };
 
@@ -50,6 +51,7 @@ const README_LINES = [
   ["  rasa: Madhura | Amla"],
   ["  guna: Guru | Snigdha"],
   ["  dosha: Vata-hara | Kapha-hara"],
+  ["  varga: Phala Varga  (classical Charaka food group — Shaka/Phala/Mamsa/etc.)"],
   ["  indications: Pandu | Amavata | Swasa"],
   [""],
   ["Any value not already an existing checkbox option is added automatically"],
@@ -66,6 +68,7 @@ function dravyaToRow(d) {
     rasa: joinList(d.rasa),
     guna: joinList(d.guna),
     dosha: joinList(d.dosha),
+    varga: joinList(d.varga),
     indications: joinList(d.indications),
   };
 }
@@ -86,6 +89,7 @@ function rowToDravya(row) {
     rasa: splitList(row.rasa),
     guna: splitList(row.guna),
     dosha: splitList(row.dosha),
+    varga: splitList(row.varga),
     indications: splitList(row.indications),
   };
 }

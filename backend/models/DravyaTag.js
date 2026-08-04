@@ -19,7 +19,7 @@ const DravyaTagSchema = new mongoose.Schema(
     category: {
       type: String,
       required: true,
-      enum: ["rasa", "guna", "dosha", "indication"],
+      enum: ["rasa", "guna", "dosha", "varga", "indication"],
       index: true,
     },
     value: { type: String, required: true, trim: true }, // e.g. "Madhura", "Guru", "Vata-hara", "Pandu"

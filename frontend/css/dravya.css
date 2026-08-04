@@ -46,12 +46,14 @@
 
 .add-checkbox-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 6px;
 }
 
 .add-checkbox-row input {
   flex: 1;
+  min-width: 160px;
   padding: 8px 10px;
   border-radius: 8px;
   border: 1px solid var(--border);
@@ -65,6 +67,52 @@
   padding: 2px 8px;
   font-size: 12px;
   margin: 1px 2px;
+}
+
+.varga-pill {
+  background: #e9dcc4;
+  color: #5c4116;
+  font-weight: 600;
+}
+
+.varga-groups {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.varga-group-title {
+  margin: 0 0 8px 0;
+  font-size: 14.5px;
+  color: var(--primary);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 5px;
+}
+
+.dravya-card-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dravya-card {
+  flex: 1 1 200px;
+  max-width: 260px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--card-bg);
+}
+
+.dravya-card-name {
+  font-weight: 600;
+  font-size: 13.5px;
+  margin-bottom: 6px;
+}
+
+.dravya-card-tags {
+  line-height: 1.9;
 }
 
 .analyzer-checklist {
@@ -184,6 +232,11 @@
 
   .dosha-card-score {
     font-size: 19px;
+  }
+
+  .dravya-card {
+    flex-basis: 100%;
+    max-width: none;
   }
 }
 

@@ -84,7 +84,7 @@
         <input id="dravyaListFilter" type="text" placeholder="Filter by name..." class="filter-input" />
         <table class="admin-table">
           <thead>
-            <tr><th>Name</th><th>Rasa</th><th>Guna</th><th>Dosha</th><th>Indications</th><th>Actions</th></tr>
+            <tr><th>Name</th><th>Varga</th><th>Rasa</th><th>Guna</th><th>Dosha</th><th>Indications</th><th>Actions</th></tr>
           </thead>
           <tbody id="dravyaListBody"></tbody>
         </table>
@@ -138,6 +138,20 @@
           </fieldset>
 
           <fieldset>
+            <legend>Varga (classical food group)</legend>
+            <p class="muted" style="margin-top:-4px;">
+              Which Charaka Samhita varga this belongs to — Shaka (vegetable), Phala (fruit),
+              Mamsa (meat), etc. Drives the grouping shown in "Browse by indication".
+            </p>
+            <div class="checkbox-group" data-category="varga" id="checkboxes-varga"></div>
+            <div class="add-checkbox-row">
+              <input type="text" class="new-checkbox-input" data-category="varga" placeholder="Add new Varga..." />
+              <button type="button" class="btn-secondary add-checkbox-btn" data-category="varga">+ Add</button>
+              <button type="button" id="seedVargasBtn" class="btn-secondary">✨ Add the 12 classical Vargas</button>
+            </div>
+          </fieldset>
+
+          <fieldset>
             <legend>Indications (diseases/conditions)</legend>
             <div class="checkbox-group" data-category="indication" id="checkboxes-indication"></div>
             <div class="add-checkbox-row">
@@ -160,7 +174,11 @@
     <div class="dravya-tab-panel" id="tab-browse" style="display:none;">
       <section class="card">
         <h2>Browse Dravyas by indication</h2>
-        <p class="muted">Pick an indication to see every Dravya checked for it, and the quality profile derived from them.</p>
+        <p class="muted">
+          Pick an indication to see every Dravya checked for it — grouped into cards by Varga
+          (Shaka varga, Phala varga, Mamsa varga, etc.), so you can see at a glance which food
+          group each option comes from. The quality profile derived from these entries is shown below.
+        </p>
         <select id="browseIndicationSelect">
           <option value="">— choose an indication —</option>
         </select>
