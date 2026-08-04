@@ -697,3 +697,11 @@ function renderDoshaAnalysisHtml(tally) {
 (function init() {
   trySession();
 })();
+
+// Register service worker for offline/installable (Android "Add to Home
+// screen") support on the Dravya module.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("service-worker.js").catch((e) => console.warn("SW failed", e));
+  });
+}

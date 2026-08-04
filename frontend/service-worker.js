@@ -1,12 +1,21 @@
-const CACHE_NAME = "pathya-advisor-shell-v2"; // bumped to flush stale v1 caches on install
+const CACHE_NAME = "pathya-advisor-shell-v3"; // bumped: now also caches Admin/Dravya doctor pages
 const SHELL_FILES = [
   "./index.html",
+  "./admin.html",
+  "./dravya.html",
   "./css/style.css",
+  "./css/admin.css",
+  "./css/dravya.css",
   "./js/config.js",
   "./js/api.js",
   "./js/render.js",
   "./js/app.js",
+  "./js/admin.js",
+  "./js/dravya.js",
   "./manifest.json",
+  "./admin-manifest.json",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png",
 ];
 
 // Cache the app shell (HTML/CSS/JS) on install so the UI itself loads offline.

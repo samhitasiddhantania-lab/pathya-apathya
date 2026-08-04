@@ -115,6 +115,7 @@
 
 .freq-chip-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin: 6px 0 4px 24px;
 }
@@ -169,6 +170,21 @@
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+@media (max-width: 480px) {
+  .analyzer-checklist {
+    max-height: 320px;
+  }
+
+  .dosha-card {
+    min-width: 100px;
+    padding: 12px 8px;
+  }
+
+  .dosha-card-score {
+    font-size: 19px;
+  }
 }
 
 .dosha-up-strong { background: #fdeceb; border-color: #f2b8b5; }

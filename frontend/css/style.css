@@ -246,3 +246,60 @@ main {
 @media (max-width: 480px) {
   .grid-two { grid-template-columns: 1fr; }
 }
+
+/* ---------------------------------------------------------------- */
+/* Mobile (Android/phone) responsiveness — shared across index/admin/dravya */
+/* ---------------------------------------------------------------- */
+
+header.topbar {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.form-row {
+  flex-wrap: wrap;
+}
+
+/* Horizontally scrollable data tables instead of overflowing/squashing
+   on narrow screens — the table itself keeps its normal internal layout,
+   only the outer box becomes scrollable. */
+.admin-table,
+.tally-table {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 640px) {
+  main, .admin-main {
+    padding: 12px;
+  }
+
+  .card {
+    padding: 13px;
+  }
+
+  header.topbar h1 {
+    font-size: 15.5px;
+  }
+
+  .topbar-actions,
+  .topbar-right {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  .admin-table th,
+  .admin-table td {
+    padding: 7px 8px;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+
+  .button-row button,
+  .button-row .btn-primary,
+  .button-row .btn-secondary {
+    flex: 1 1 auto;
+  }
+}
+
