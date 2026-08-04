@@ -3,10 +3,11 @@ const AuditLog = require("../models/AuditLog");
 // Fire-and-forget style logging: a failed audit write should never break
 // the actual request, so callers `await` this but errors here are only
 // console.error'd, never thrown back up.
-async function logAction({ action, slug, user, summary, meta }) {
+async function logAction({ action, slug, user, summary, meta, entityType }) {
   try {
     await AuditLog.create({
       action,
+      entityType: entityType || "disease",
       slug,
       performedByEmail: user.email,
       performedByRole: user.role,

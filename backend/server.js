@@ -16,6 +16,7 @@ const diseaseRoutes = require("./routes/diseases");
 const adminRoutes = require("./routes/admin");
 const authRoutes = require("./routes/auth");
 const usersRoutes = require("./routes/users");
+const dravyaRoutes = require("./routes/dravya");
 const AdminUser = require("./models/AdminUser");
 const { hashPassword } = require("./utils/auth");
 
@@ -72,6 +73,11 @@ app.use("/api/diseases", diseaseRoutes);
 app.use("/api/admin/auth", authRoutes);
 app.use("/api/admin/users", usersRoutes);
 app.use("/api/admin", adminRoutes);
+
+// Separate module (Dravya database + habit analyzer) — doctor-only,
+// requires the same login as /api/admin, but kept as its own route file/
+// collection set so it never touches the Disease/Pathya-Apathya module.
+app.use("/api/dravya", dravyaRoutes);
 
 app.use((req, res) => res.status(404).json({ error: "Route not found" }));
 

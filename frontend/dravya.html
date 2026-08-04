@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<title>Dravya Module · Pathya-Apathya Advisor</title>
+<meta name="robots" content="noindex, nofollow" />
+<link rel="stylesheet" href="css/style.css" />
+<link rel="stylesheet" href="css/admin.css" />
+<link rel="stylesheet" href="css/dravya.css" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+</head>
+<body>
+
+<header class="topbar">
+  <h1>🌿 Dravya Module</h1>
+  <div class="topbar-actions">
+    <a href="admin.html" class="link-btn">← Admin panel</a>
+    <span id="roleBadge" class="role-badge" style="display:none;"></span>
+    <button id="logoutBtn" class="link-btn" style="display:none;">Log out</button>
+  </div>
+</header>
+
+<main class="admin-main">
+
+  <!-- ===================== LOGIN GATE ===================== -->
+  <section id="loginGate" class="card">
+    <h2>Sign in</h2>
+    <p class="muted">
+      Doctor-only module — sign in with the same account you use for the Admin panel.
+      No public access; nothing here is patient-facing.
+    </p>
+    <div class="form-row" style="flex-wrap:wrap;">
+      <input id="loginEmail" type="email" placeholder="you@example.com" autocomplete="username" />
+      <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" />
+      <button id="loginBtn" class="btn-primary">Sign in</button>
+    </div>
+    <div id="loginError" class="error-text"></div>
+  </section>
+
+  <!-- ===================== MAIN CONTENT (hidden until logged in) ===================== -->
+  <div id="dravyaContent" style="display:none;">
+
+    <!-- ---------- Tab nav ---------- -->
+    <div class="dravya-tabs">
+      <button class="dravya-tab-btn active" data-tab="entries">📋 Dravya entries</button>
+      <button class="dravya-tab-btn" data-tab="browse">🔍 Browse by indication</button>
+      <button class="dravya-tab-btn" data-tab="analyzer">🧮 Habit analyzer</button>
+    </div>
+
+    <!-- ---------- TAB: Entries list + form ---------- -->
+    <div class="dravya-tab-panel" id="tab-entries">
+
+      <!-- ---------- Bulk Excel Import/Export (admin only) ---------- -->
+      <section class="card admin-only-section" id="dravyaExcelSection">
+        <h2>📊 Bulk import / export (Excel)</h2>
+        <p class="muted">
+          Upload a spreadsheet to create or <strong>completely overwrite</strong> Dravya entries in bulk —
+          matched by the <code>name</code> column (case-insensitive). Any checkbox value used in the sheet
+          (Rasa/Guna/Dosha/Indication) is automatically registered — reusing an existing one if it already
+          exists (case-insensitive), or adding a new checkbox if it doesn't.
+        </p>
+
+        <div class="button-row">
+          <button id="downloadDravyaTemplateBtn" class="btn-secondary">⬇ Download blank template</button>
+          <button id="downloadDravyaExportBtn" class="btn-secondary">⬇ Export current data</button>
+        </div>
+
+        <div class="form-row" style="margin-top:14px;">
+          <input id="dravyaExcelFileInput" type="file" accept=".xlsx,.xls" />
+          <button id="uploadDravyaExcelBtn" class="btn-primary">Upload &amp; overwrite</button>
+        </div>
+
+        <div id="dravyaImportResult"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-header">
+          <h2>All Dravya entries</h2>
+          <button id="newDravyaBtn" class="btn-primary">+ New Dravya</button>
+        </div>
+        <input id="dravyaListFilter" type="text" placeholder="Filter by name..." class="filter-input" />
+        <table class="admin-table">
+          <thead>
+            <tr><th>Name</th><th>Rasa</th><th>Guna</th><th>Dosha</th><th>Indications</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="dravyaListBody"></tbody>
+        </table>
+      </section>
+
+      <!-- ---------- Editor form ---------- -->
+      <section class="card" id="dravyaEditorSection" style="display:none;">
+        <div class="section-header">
+          <h2 id="dravyaEditorTitle">New Dravya</h2>
+          <button id="closeDravyaEditorBtn" class="link-btn">✕ Close</button>
+        </div>
+
+        <form id="dravyaForm">
+          <div class="grid-2">
+            <label>Name *
+              <input name="name" required placeholder="Dadima" />
+            </label>
+            <label>Common name
+              <input name="commonName" placeholder="Pomegranate" />
+            </label>
+          </div>
+          <label style="display:block; margin-top:10px;">Notes
+            <textarea name="notes" rows="2" placeholder="Optional clinical note"></textarea>
+          </label>
+
+          <fieldset>
+            <legend>Rasa</legend>
+            <div class="checkbox-group" data-category="rasa" id="checkboxes-rasa"></div>
+            <div class="add-checkbox-row">
+              <input type="text" class="new-checkbox-input" data-category="rasa" placeholder="Add new Rasa..." />
+              <button type="button" class="btn-secondary add-checkbox-btn" data-category="rasa">+ Add</button>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Guna</legend>
+            <div class="checkbox-group" data-category="guna" id="checkboxes-guna"></div>
+            <div class="add-checkbox-row">
+              <input type="text" class="new-checkbox-input" data-category="guna" placeholder="Add new Guna..." />
+              <button type="button" class="btn-secondary add-checkbox-btn" data-category="guna">+ Add</button>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Dosha effect</legend>
+            <div class="checkbox-group" data-category="dosha" id="checkboxes-dosha"></div>
+            <div class="add-checkbox-row">
+              <input type="text" class="new-checkbox-input" data-category="dosha" placeholder="Add new Dosha effect..." />
+              <button type="button" class="btn-secondary add-checkbox-btn" data-category="dosha">+ Add</button>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Indications (diseases/conditions)</legend>
+            <div class="checkbox-group" data-category="indication" id="checkboxes-indication"></div>
+            <div class="add-checkbox-row">
+              <input type="text" class="new-checkbox-input" data-category="indication" placeholder="Add new indication..." />
+              <button type="button" class="btn-secondary add-checkbox-btn" data-category="indication">+ Add</button>
+            </div>
+          </fieldset>
+
+          <div id="dravyaEditorError" class="error-text"></div>
+
+          <div class="button-row" style="margin-top:16px;">
+            <button type="submit" class="btn-primary">💾 Save Dravya</button>
+            <button type="button" id="cancelDravyaEditBtn" class="btn-secondary">Cancel</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <!-- ---------- TAB: Browse by indication ---------- -->
+    <div class="dravya-tab-panel" id="tab-browse" style="display:none;">
+      <section class="card">
+        <h2>Browse Dravyas by indication</h2>
+        <p class="muted">Pick an indication to see every Dravya checked for it, and the quality profile derived from them.</p>
+        <select id="browseIndicationSelect">
+          <option value="">— choose an indication —</option>
+        </select>
+        <div id="browseResults" style="margin-top:16px;"></div>
+      </section>
+    </div>
+
+    <!-- ---------- TAB: Habit analyzer ---------- -->
+    <div class="dravya-tab-panel" id="tab-analyzer" style="display:none;">
+      <section class="card">
+        <h2>Patient habit analyzer</h2>
+        <p class="muted">
+          One-off check — nothing is saved. Pick the Dravyas the patient habitually consumes
+          (frequency is optional). This tallies the qualities involved — it does not diagnose anything.
+        </p>
+        <div id="analyzerRows"></div>
+        <button type="button" id="addAnalyzerRowBtn" class="btn-secondary">+ Add Dravya</button>
+        <div class="button-row" style="margin-top:14px;">
+          <button type="button" id="runAnalyzerBtn" class="btn-primary">🧮 Tally qualities</button>
+        </div>
+        <div id="analyzerResult" style="margin-top:16px;"></div>
+      </section>
+
+      <section class="card">
+        <h2>What's good for a diagnosis</h2>
+        <p class="muted">
+          Separately, pick the diagnosis (from the same indication checkboxes) to see which qualities
+          are commonly indicated for it, based on the Dravya entries checked for that indication.
+        </p>
+        <select id="diagnosisIndicationSelect">
+          <option value="">— choose a diagnosis —</option>
+        </select>
+        <div id="diagnosisResult" style="margin-top:16px;"></div>
+      </section>
+    </div>
+
+  </div>
+</main>
+
+<script src="js/config.js"></script>
+<script src="js/dravya.js"></script>
+</body>
+</html>

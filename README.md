@@ -285,7 +285,50 @@ the link is built relative to wherever `admin.html` is running.
 
 ---
 
-## 10. Troubleshooting
+## 11. Dravya Module (new, separate from everything above)
+
+A second, self-contained module lives at `frontend/dravya.html`, reached via a
+"🌿 Dravya Module" link in the Admin panel header. **It is completely independent
+of the Disease/Pathya-Apathya module described above** — its own collections
+(`Dravya`, `DravyaTag`), its own routes (`/api/dravya/*`), its own frontend
+page and JS file. Nothing in Sections 1–10 was changed to build this.
+
+- **No public access.** Every route requires the same doctor/editor login used
+  by `admin.html` (same JWT session — if you're logged into one, you're logged
+  into both). There is no patient-facing page for this module.
+- **Dravya entries.** Each Dravya (food/substance) is tagged with Rasa, Guna,
+  Dosha effect, and Indications (diseases/conditions) — all four are
+  independent, growing checkbox lists. Type a brand-new option inline while
+  entering a Dravya and it's saved permanently as a checkbox for every future
+  entry, for every editor.
+- **Browse by indication.** Pick an indication checkbox to see every Dravya
+  checked for it, plus a quality profile (Rasa/Guna/Dosha tally) derived from
+  those entries.
+- **Habit analyzer** (one-off, nothing saved). Select the Dravyas a patient
+  habitually eats, with an optional frequency per item (Occasional ×1,
+  Weekly ×2, Daily ×3 — blank counts as ×1). It tallies the qualities involved
+  — it does not guess a diagnosis. Separately, pick a diagnosis from the same
+  indication list to see what qualities are commonly indicated for it.
+- **Bulk Excel import/export (admin only).** Same pattern as the Disease
+  module's importer: download a blank `.xlsx` template (with a filled example
+  row and a "Read Me" sheet), fill in one row per Dravya, upload to create or
+  **completely overwrite** — matched by the `name` column, case-insensitive.
+  One bad row won't block the rest; you get a per-row error summary. Every
+  checkbox value used in the sheet (`rasa`/`guna`/`dosha`/`indications`,
+  pipe-`|`-separated for multiple values) goes through the same
+  case-insensitive de-dupe as the single-entry form — re-uploading the same
+  sheet, or a sheet with different capitalization of an existing value, never
+  creates a duplicate checkbox. You can also **export current data** back out
+  to the same format, e.g. to bulk-edit and re-upload.
+
+New backend files: `backend/models/Dravya.js`, `backend/models/DravyaTag.js`,
+`backend/routes/dravya.js`, `backend/utils/dravyaExcelSheet.js`. No new npm
+dependencies — reuses the same Express/Mongoose/JWT/multer/xlsx stack already
+in `package.json`.
+
+---
+
+## 12. Troubleshooting
 
 - **CORS errors in browser console** → add your frontend's exact URL to `ALLOWED_ORIGINS`
   on the backend and redeploy/restart.
